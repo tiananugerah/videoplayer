@@ -45,11 +45,25 @@
 
 .fadeIn {
   opacity: 0;
-  animation: fadeIn 0.3s ease forwards;
+  animation: fadeIn 0.5s ease-in-out forwards;
 }
 
 @keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
   to {
     opacity: 1;
   }
+}
+
+/* Transisi halus untuk menghindari berkedip */
+.videoTransition {
+  transition: opacity 0.5s ease-in-out;
+  will-change: opacity;
+  position: relative;
+  z-index: 1;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-font-smoothing: subpixel-antialiased;
 }

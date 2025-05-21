@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface UseVideoAuthResult {
   videoUrl: string | null;
@@ -100,9 +100,15 @@ export const useVideoAuth = (): UseVideoAuthResult => {
   const fetchVideoUrl = async (src: string) => {
     const retries = 3;
     const timeout = 5000;
-    if (!videoUrl) {
-      setIsLoading(true);
-      setError(null);
+    
+    // Selalu reset state saat memulai fetch baru
+    setIsLoading(true);
+    setError(null);
+    
+    // Jika ada videoUrl sebelumnya, bersihkan
+    if (videoUrl) {
+      URL.revokeObjectURL(videoUrl);
+      setVideoUrl(null);
     }
 
     for (let i = 0; i < retries; i++) {
@@ -165,11 +171,21 @@ export const useVideoAuth = (): UseVideoAuthResult => {
         }
 
         const videoBlob = await videoResponse.blob();
-        const videoObjectUrl = URL.createObjectURL(videoBlob);
-        if (!videoUrl) {
-          setVideoUrl(videoObjectUrl);
-          setIsLoading(false);
+        // Membersihkan URL objek sebelumnya jika ada
+        if (videoUrl) {
+          URL.revokeObjectURL(videoUrl);
         }
+        
+        // Pastikan blob valid sebelum membuat URL
+        if (videoBlob.size === 0) {
+          throw new Error('Video yang diterima kosong atau tidak valid');
+        }
+        
+        const videoObjectUrl = URL.createObjectURL(videoBlob);
+        console.log('Video URL berhasil dibuat:', videoObjectUrl);
+        setVideoUrl(videoObjectUrl);
+        setIsLoading(false);
+        setError(null); // Reset error state jika berhasil
         return;
 
       } catch (error) {
@@ -195,6 +211,14 @@ export const useVideoAuth = (): UseVideoAuthResult => {
     }
     return null;
   };
+
+  useEffect(() => {
+    return () => {
+      if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+      }
+    };
+  }, [videoUrl]);
 
   return {
     videoUrl,

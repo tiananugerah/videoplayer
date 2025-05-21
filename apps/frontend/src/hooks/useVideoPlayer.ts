@@ -11,12 +11,15 @@ interface UseVideoPlayerResult {
   isMuted: boolean;
   isLoading: boolean;
   error: string | null;
+  buffered: TimeRanges | null;
+  playbackRate: number;
   togglePlay: () => void;
   handleVolumeChange: (volume: number) => void;
   toggleMute: () => void;
   handleSeek: (time: number) => void;
   handleVideoError: (error: Error) => void;
   setIsLoading: (loading: boolean) => void;
+  setPlaybackRate: (rate: number) => void;
 }
 
 export const useVideoPlayer = (src?: string): UseVideoPlayerResult => {
@@ -28,17 +31,35 @@ export const useVideoPlayer = (src?: string): UseVideoPlayerResult => {
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [buffered, setBuffered] = useState<TimeRanges | null>(null);
+  const [playbackRate, setPlaybackRate] = useState(1);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const handleTimeUpdate = () => setCurrentTime(video.currentTime);
+    const handleTimeUpdate = () => {
+      if (!isNaN(video.currentTime)) {
+        setCurrentTime(video.currentTime);
+        setBuffered(video.buffered);
+      }
+    };
+
     const handleLoadedMetadata = () => {
-      setDuration(video.duration);
+      if (!isNaN(video.duration)) {
+        setDuration(video.duration);
+        setCurrentTime(0);
+      }
       setIsLoading(false);
       setError(null);
     };
+
+    const handleDurationChange = () => {
+      if (!isNaN(video.duration)) {
+        setDuration(video.duration);
+      }
+    };
+
     const handleLoadStart = () => setIsLoading(true);
     const handleLoadedData = () => setIsLoading(false);
     const handleError = (e: Event) => {
@@ -48,16 +69,31 @@ export const useVideoPlayer = (src?: string): UseVideoPlayerResult => {
 
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('durationchange', handleDurationChange);
     video.addEventListener('loadstart', handleLoadStart);
     video.addEventListener('loadeddata', handleLoadedData);
     video.addEventListener('error', handleError);
+    video.addEventListener('progress', () => setBuffered(video.buffered));
+    video.addEventListener('ratechange', () => setPlaybackRate(video.playbackRate));
+    video.addEventListener('seeking', handleTimeUpdate);
+    video.addEventListener('seeked', handleTimeUpdate);
+
+    // Coba dapatkan durasi jika sudah tersedia
+    if (!isNaN(video.duration)) {
+      setDuration(video.duration);
+    }
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('loadstart', handleLoadStart);
-      video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('error', handleError);
+    video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    video.removeEventListener('durationchange', handleDurationChange);
+    video.removeEventListener('loadstart', handleLoadStart);
+    video.removeEventListener('loadeddata', handleLoadedData);
+    video.removeEventListener('error', handleError);
+    video.removeEventListener('progress', () => setBuffered(video.buffered));
+    video.removeEventListener('ratechange', () => setPlaybackRate(video.playbackRate));
+    video.removeEventListener('seeking', handleTimeUpdate);
+    video.removeEventListener('seeked', handleTimeUpdate);
     };
   }, [src]);
 
@@ -143,11 +179,14 @@ export const useVideoPlayer = (src?: string): UseVideoPlayerResult => {
     isMuted,
     isLoading,
     error,
+    buffered,
+    playbackRate,
     togglePlay,
     handleVolumeChange,
     toggleMute,
     handleSeek,
     handleVideoError,
-    setIsLoading
+    setIsLoading,
+    setPlaybackRate
   };
 };
